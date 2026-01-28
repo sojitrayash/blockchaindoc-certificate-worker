@@ -10,7 +10,8 @@
         "dev": "npm run dev:webhook",
         "worker": "node src/worker.js",
         "test": "jest",
-        "lint": "eslint src"
+        "lint": "eslint src",
+        "postinstall": "npx puppeteer browsers install chrome"
     },
     "dependencies": {
         "@aws-sdk/client-s3": "^3.400.0",
