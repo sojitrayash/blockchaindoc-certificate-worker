@@ -39,8 +39,13 @@ async function main() {
     // Connect to database
     await connectDB();
     
-    // Start worker (polling loops, background processing)
-    await startWorker();
+    // Start worker (polling loops, background processing) in background
+    // Don't await here, otherwise we never reach the HTTP health server.
+    startWorker().catch((err) => {
+      logger.error('Worker encountered a fatal error:', err);
+      // Optionally decide whether to exit or keep health endpoint alive
+      // process.exit(1);
+    });
 
     // In Web Service environments like Render, we also need to bind to a port
     // so the platform can detect that the service is healthy.
