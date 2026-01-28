@@ -1,4 +1,5 @@
 require('dotenv').config();
+const express = require('express');
 const { connectDB } = require('./config/database');
 const { startWorker, stopWorker } = require('./worker');
 const logger = require('./utils/logger');
@@ -38,8 +39,26 @@ async function main() {
     // Connect to database
     await connectDB();
     
-    // Start worker
+    // Start worker (polling loops, background processing)
     await startWorker();
+
+    // In Web Service environments like Render, we also need to bind to a port
+    // so the platform can detect that the service is healthy.
+    const app = express();
+    const PORT = process.env.PORT || 3000;
+
+    app.get('/health', (req, res) => {
+      res.json({
+        ok: true,
+        worker: 'running',
+        mode: 'polling',
+        timestamp: new Date().toISOString(),
+      });
+    });
+
+    app.listen(PORT, '0.0.0.0', () => {
+      logger.info('Health server listening for worker', { port: PORT });
+    });
     
   } catch (error) {
     logger.error('Failed to start worker:', error);
