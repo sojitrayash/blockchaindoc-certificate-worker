@@ -1,0 +1,47 @@
+{
+    "name": "blockchaindoc-certificate-worker",
+    "version": "1.0.0",
+    "description": "Justifai Certificate Processing Worker",
+    "main": "src/index.js",
+    "scripts": {
+        "start": "node src/index.js",
+        "dev:worker": "nodemon src/index.js",
+        "dev:webhook": "concurrently -k -n worker,webhook \"npm run dev:worker\" \"node src/scripts/webhook-receiver.js\"",
+        "dev": "npm run dev:webhook",
+        "worker": "node src/worker.js",
+        "test": "jest",
+        "lint": "eslint src"
+    },
+    "dependencies": {
+        "@aws-sdk/client-s3": "^3.400.0",
+        "@aws-sdk/lib-storage": "^3.400.0",
+        "aws-sdk": "^2.1693.0",
+        "axios": "^1.6.0",
+        "dotenv": "^16.6.1",
+        "ethers": "^5.8.0",
+        "express": "^4.18.2",
+        "html-pdf": "^3.0.1",
+        "js-sha3": "^0.8.0",
+        "keccak256": "^1.0.6",
+        "merkletreejs": "^0.3.11",
+        "pdf-lib": "^1.17.1",
+        "pdf-parse": "^1.1.1",
+        "pdfjs-dist": "^4.10.38",
+        "pg": "^8.16.3",
+        "pg-hstore": "^2.3.4",
+        "puppeteer": "^24.33.0",
+        "qrcode": "^1.5.3",
+        "sequelize": "^6.37.7",
+        "uuid": "^9.0.0",
+        "winston": "^3.10.0"
+    },
+    "devDependencies": {
+        "concurrently": "^9.2.1",
+        "eslint": "^8.50.0",
+        "jest": "^29.7.0",
+        "nodemon": "^3.0.1"
+    },
+    "engines": {
+        "node": ">=16.0.0"
+    }
+}

@@ -1,0 +1,25 @@
+{
+  "documentHash": "3724e94c9114132d2645cb04893a46835e2d06d27f349ff78eb0642eec135cf5",
+  "documentFingerprint": null,
+  "fingerprintHash": "3724e94c9114132d2645cb04893a46835e2d06d27f349ff78eb0642eec135cf5",
+  "issuerSignature": "0x1f28fc8dbfe62ea1c25449ee517dba266519b4ff356ed3745e9db7082cac0626796dcf1544935fbae1098a01d224fc1ff6dfc6e737c85f5122666e125503007a01",
+  "merkleLeaf": "a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a",
+  "expiryDate": null,
+  "invalidationExpiry": null,
+  "issuerId": "e44cd9f2-9de6-4cb0-92b4-5b5fb8c5141d",
+  "issuerPublicKey": null,
+  "merkleProofIntermediate": [
+    {
+      "data": "a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a",
+      "position": "left"
+    },
+    {
+      "data": "a205703bee0d7a9ac7785182905c75f0a20ee167712988a87db50f4abeb8a35b",
+      "position": "left"
+    }
+  ],
+  "merkleRootIntermediate": "b0a01d23342d09d8b134e08aadcbe13d26fdc269afd050a54def322d70ece317",
+  "merkleProofUltimate": [],
+  "txHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "network": "polygon"
+}

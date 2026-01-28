@@ -1,0 +1,109 @@
+service: blockchaindoc-certificate-worker
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: ${opt:stage, 'dev'}
+  region: ${env:AWS_REGION, 'us-east-1'}
+  timeout: 300 # 5 minutes
+  memorySize: 512
+  
+  environment:
+    NODE_ENV: ${self:provider.stage}
+    DB_HOST: ${env:DB_HOST}
+    DB_PORT: ${env:DB_PORT}
+    DB_NAME: ${env:DB_NAME}
+    DB_USER: ${env:DB_USER}
+    DB_PASSWORD: ${env:DB_PASSWORD}
+    AWS_REGION: ${env:AWS_REGION}
+    S3_BUCKET_NAME: ${env:S3_BUCKET_NAME}
+    STORAGE_DRIVER: s3
+    WORKER_MODE: lambda
+    LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
+  
+  # VPC configuration for database access
+  # Uncomment and configure if your database is in a VPC
+  # vpc:
+  #   securityGroupIds:
+  #     - sg-xxxxxxxxxx
+  #   subnetIds:
+  #     - subnet-xxxxxxxxxx
+  #     - subnet-yyyyyyyyyy
+  
+  iam:
+    role:
+      statements:
+        # S3 permissions
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:PutObjectAcl
+          Resource:
+            - arn:aws:s3:::${env:S3_BUCKET_NAME}/*
+        
+        # SQS permissions
+        - Effect: Allow
+          Action:
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueAttributes
+          Resource:
+            - arn:aws:sqs:${self:provider.region}:*:${env:SQS_QUEUE_NAME}
+        
+        # CloudWatch Logs permissions (automatically granted, but listed for clarity)
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource:
+            - arn:aws:logs:${self:provider.region}:*:*
+
+functions:
+  certificateWorker:
+    handler: src/lambda.handler
+    description: Process certificate generation jobs from SQS
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - CertificateJobQueue
+              - Arn
+          batchSize: 1
+          maximumBatchingWindowInSeconds: 0
+          functionResponseType: ReportBatchItemFailures
+
+resources:
+  Resources:
+    CertificateJobQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${env:SQS_QUEUE_NAME, 'certificate-jobs-${self:provider.stage}'}
+        VisibilityTimeout: 300 # Should match Lambda timeout
+        MessageRetentionPeriod: 1209600 # 14 days
+        ReceiveMessageWaitTimeSeconds: 20 # Long polling
+        RedrivePolicy:
+          deadLetterTargetArn:
+            Fn::GetAtt:
+              - CertificateJobDLQ
+              - Arn
+          maxReceiveCount: 3
+    
+    CertificateJobDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${env:SQS_QUEUE_NAME, 'certificate-jobs-${self:provider.stage}'}-dlq
+        MessageRetentionPeriod: 1209600 # 14 days
+
+plugins:
+  - serverless-dotenv-plugin
+
+package:
+  exclude:
+    - node_modules/aws-sdk/**
+    - test-output/**
+    - storage/**
+    - logs/**
+    - .git/**
+    - .env*
+    - README.md
