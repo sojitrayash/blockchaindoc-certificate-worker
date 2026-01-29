@@ -20,11 +20,18 @@ class S3Storage extends StorageInterface {
       return;
     }
 
-    this.s3 = new AWS.S3({
+    const s3Config = {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-      region: process.env.AWS_REGION,
-    });
+      region: process.env.AWS_REGION || 'us-east-1',
+    };
+    // Supabase Storage (S3-compatible): use custom endpoint and path-style
+    if (process.env.AWS_ENDPOINT) {
+      s3Config.endpoint = process.env.AWS_ENDPOINT;
+      s3Config.s3ForcePathStyle = true;
+      s3Config.signatureVersion = 'v4';
+    }
+    this.s3 = new AWS.S3(s3Config);
     this.bucketName = process.env.S3_BUCKET_NAME;
   }
 
@@ -49,9 +56,12 @@ class S3Storage extends StorageInterface {
       Key: key,
       Body: buffer,
       ContentType: 'application/pdf',
-      ServerSideEncryption: 'AES256',
       Metadata: metadata,
     };
+    // Only set ServerSideEncryption for real AWS S3 (Supabase may not support it)
+    if (!process.env.AWS_ENDPOINT) {
+      params.ServerSideEncryption = 'AES256';
+    }
 
     try {
       const result = await this.s3.upload(params).promise();
