@@ -12,9 +12,9 @@ RUN apk add --no-cache \
     ca-certificates \
     ttf-freefont
 
-# Set Puppeteer to use installed Chromium
+# Set Puppeteer to use installed Chromium (Alpine: /usr/bin/chromium or /usr/bin/chromium-browser)
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Copy package files
 COPY package*.json ./
