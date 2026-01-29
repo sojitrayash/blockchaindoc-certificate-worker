@@ -35,7 +35,16 @@ process.on('SIGINT', async () => {
 async function main() {
   try {
     logger.info('Starting Certificate Worker...');
-    
+
+    // Debug: ensure Playwright Chromium is available (log path once at startup).
+    try {
+      const { chromium } = require('playwright');
+      const execPath = chromium.executablePath();
+      logger.info('Playwright Chromium executable', { path: execPath || '(bundled)' });
+    } catch (e) {
+      logger.warn('Playwright Chromium path check skipped', { error: e?.message });
+    }
+
     // Connect to database
     await connectDB();
     
