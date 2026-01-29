@@ -59,7 +59,8 @@ async function main() {
     // In Web Service environments like Render, we also need to bind to a port
     // so the platform can detect that the service is healthy.
     const app = express();
-    const PORT = process.env.PORT || 3000;
+    // Use different port locally to avoid conflict with backend (3000)
+    const PORT = process.env.PORT || (process.env.NODE_ENV === 'production' ? 3000 : 3001);
 
     app.get('/health', (req, res) => {
       res.json({
