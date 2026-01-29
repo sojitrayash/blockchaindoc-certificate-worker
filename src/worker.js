@@ -1,9 +1,22 @@
-const pLimit = require('p-limit');
 const { fetchPendingJobs, getJobWithTemplate, updateJobStatus, markJobAsProcessing } = require('./services/jobService');
 const { renderTemplate, validateParameters } = require('./services/templateService');
 const { generatePDF, closeBrowser } = require('./services/pdfService');
 const StorageFactory = require('./storage/StorageFactory');
 const logger = require('./utils/logger');
+
+// Load p-limit with fallback
+let pLimit;
+try {
+  pLimit = require('p-limit');
+  // Handle both CommonJS (v4) and ESM (v5) exports
+  if (typeof pLimit !== 'function' && pLimit.default) {
+    pLimit = pLimit.default;
+  }
+} catch (e) {
+  logger.warn('p-limit not available, using fallback (no concurrency limit)', { error: e?.message });
+  // Fallback: no-op limiter
+  pLimit = (concurrency) => (fn) => fn();
+}
 
 // Limit concurrent PDF jobs to avoid OOM on Render (Playwright: 1 browser per PDF).
 const pdfConcurrency = parseInt(process.env.PDF_CONCURRENCY, 10) || 2;
