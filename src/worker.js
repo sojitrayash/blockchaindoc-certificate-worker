@@ -1,8 +1,13 @@
+const pLimit = require('p-limit');
 const { fetchPendingJobs, getJobWithTemplate, updateJobStatus, markJobAsProcessing } = require('./services/jobService');
 const { renderTemplate, validateParameters } = require('./services/templateService');
 const { generatePDF, closeBrowser } = require('./services/pdfService');
 const StorageFactory = require('./storage/StorageFactory');
 const logger = require('./utils/logger');
+
+// Limit concurrent PDF jobs to avoid OOM on Render (Playwright: 1 browser per PDF).
+const pdfConcurrency = parseInt(process.env.PDF_CONCURRENCY, 10) || 2;
+const limitPdf = pLimit(pdfConcurrency);
 
 let isRunning = false;
 let processingJobs = new Set();
@@ -194,7 +199,7 @@ async function startPollingMode() {
   const pollInterval = parseInt(process.env.WORKER_POLL_INTERVAL) || 10000;
   const concurrentJobs = parseInt(process.env.WORKER_CONCURRENT_JOBS) || 5;
 
-  logger.info('Worker started in POLLING mode', { pollInterval, concurrentJobs });
+  logger.info('Worker started in POLLING mode', { pollInterval, concurrentJobs, pdfConcurrency });
 
   isRunning = true;
 
@@ -206,8 +211,8 @@ async function startPollingMode() {
       if (jobs.length > 0) {
         logger.info(`Found ${jobs.length} pending jobs`);
 
-        // Process jobs concurrently
-        await Promise.all(jobs.map(job => processJobById(job.id)));
+        // Process jobs with concurrency limit (PDF: 1 browser per job; cap to avoid OOM).
+        await Promise.all(jobs.map((job) => limitPdf(() => processJobById(job.id))));
       }
 
       // Wait before next poll
