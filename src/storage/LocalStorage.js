@@ -28,14 +28,19 @@ class LocalStorage extends StorageInterface {
    * @param {Buffer} buffer - File buffer to store
    * @param {string} tenantId - Tenant ID
    * @param {string} batchId - Batch ID
-   * @param {string} jobId - Job ID
-   * @param {object} metadata - Optional metadata
+   * @param {string} jobId - Job ID (or filename)
+   * @param {object} metadata - Optional metadata (may include internal routing hints)
+   *   - __folder: override top-level folder (default: 'certificates')
+   *   - __extension: override file extension (default: '.pdf' when jobId has no '.')
    * @returns {Promise<string>} - Relative path where file is stored
    */
   async store(buffer, tenantId, batchId, jobId, metadata = {}) {
     try {
-      // Create directory structure: certificates/{tenantId}/{batchId}/
-      const relativePath = path.join('certificates', tenantId, batchId);
+      const folder = metadata.__folder || 'certificates';
+      const explicitExt = metadata.__extension || '.pdf';
+
+      // Create directory structure: {folder}/{tenantId}/{batchId}/
+      const relativePath = path.join(folder, tenantId, batchId);
       const fullPath = path.join(this.basePath, relativePath);
       
       // Ensure directory exists
@@ -44,7 +49,8 @@ class LocalStorage extends StorageInterface {
       }
 
       // Create file path
-      const fileName = `${jobId}.pdf`;
+      const hasDot = typeof jobId === 'string' && jobId.includes('.');
+      const fileName = hasDot ? jobId : `${jobId}${explicitExt}`;
       const filePath = path.join(fullPath, fileName);
       const relativeFilePath = path.join(relativePath, fileName);
 
