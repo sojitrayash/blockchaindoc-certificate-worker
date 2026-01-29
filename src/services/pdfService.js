@@ -1,8 +1,20 @@
+const fs = require('fs');
 const puppeteer = require('puppeteer'); // To create PDF from HTML (reliable layout)
 const { PDFDocument } = require('pdf-lib'); // To edit PDF (QR & Attachments)
 const QRCode = require('qrcode'); // To generate QR code
 const baseLogger = require('../utils/logger');
 const logger = baseLogger.createLogger ? baseLogger.createLogger('PDF') : baseLogger;
+
+/** Resolve Chromium executable: try configured path, then Alpine-style fallbacks. */
+function resolveChromiumPath() {
+  const configured = process.env.PUPPETEER_EXECUTABLE_PATH;
+  if (configured && fs.existsSync(configured)) return configured;
+  const fallbacks = ['/usr/bin/chromium', '/usr/bin/chromium-browser'];
+  for (const p of fallbacks) {
+    if (fs.existsSync(p)) return p;
+  }
+  return configured || null;
+}
 
 // On Render (native): ensure Puppeteer looks for Chrome in the cache used at build time.
 if (process.env.RENDER && !process.env.PUPPETEER_CACHE_DIR) {
@@ -16,8 +28,9 @@ let browserPromise = null;
 
 async function getBrowser() {
   if (!browserPromise) {
-    // Use system Chromium when set (e.g. Docker); otherwise use Puppeteer's cached Chrome.
-    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath();
+    // Prefer system Chromium (Docker); fallback to Puppeteer's cached Chrome (native Render).
+    const systemPath = resolveChromiumPath();
+    const executablePath = systemPath || puppeteer.executablePath();
     browserPromise = puppeteer.launch({
       headless: 'new',
       executablePath,
