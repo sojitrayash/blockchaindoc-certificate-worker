@@ -76,7 +76,7 @@ async function testPDFGeneration() {
     console.log(`   - PDF Size: ${pdfBuffer.length} bytes`);
     console.log(`   - Hash: ${hash}`);
     console.log(`   - Location: ${outputPath}`);
-    console.log(`   - Generator: html-pdf`);
+    console.log(`   - Generator: Playwright`);
     
   } catch (error) {
     console.error('❌ Test failed:', error.message);
