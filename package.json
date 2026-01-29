@@ -11,7 +11,7 @@
         "worker": "node src/worker.js",
         "test": "jest",
         "lint": "eslint src",
-        "postinstall": "npx puppeteer browsers install chrome"
+        "postinstall": "npx playwright install chromium"
     },
     "dependencies": {
         "@aws-sdk/client-s3": "^3.400.0",
@@ -30,7 +30,8 @@
         "pdfjs-dist": "^4.10.38",
         "pg": "^8.16.3",
         "pg-hstore": "^2.3.4",
-        "puppeteer": "^24.33.0",
+        "p-limit": "^4.0.0",
+        "playwright": "^1.49.0",
         "qrcode": "^1.5.3",
         "sequelize": "^6.37.7",
         "uuid": "^9.0.0",
