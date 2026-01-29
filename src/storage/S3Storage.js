@@ -40,8 +40,11 @@ class S3Storage extends StorageInterface {
    * @param {Buffer} buffer - File buffer to store
    * @param {string} tenantId - Tenant ID
    * @param {string} batchId - Batch ID
-   * @param {string} jobId - Job ID
-   * @param {object} metadata - Optional metadata
+   * @param {string} jobId - Job ID (or filename)
+   * @param {object} metadata - Optional metadata (may include internal routing hints)
+   *   - __folder: override top-level folder (default: 'certificates')
+   *   - __extension: override file extension (default: '.pdf' when jobId has no '.')
+   *   - __contentType: override Content-Type (default: 'application/pdf')
    * @returns {Promise<string>} - S3 key where file is stored
    */
   async store(buffer, tenantId, batchId, jobId, metadata = {}) {
@@ -49,14 +52,29 @@ class S3Storage extends StorageInterface {
       throw new Error('S3 not configured. Please install aws-sdk or use local storage.');
     }
 
-    const key = `certificates/${tenantId}/${batchId}/${jobId}.pdf`;
+    // Internal routing hints
+    const folder = metadata.__folder || 'certificates';
+    const explicitExt = metadata.__extension || '.pdf';
+    const contentType = metadata.__contentType || 'application/pdf';
+
+    // Avoid leaking internal hints into S3 object metadata
+    const cleanMetadata = { ...metadata };
+    delete cleanMetadata.__folder;
+    delete cleanMetadata.__extension;
+    delete cleanMetadata.__contentType;
+
+    // If jobId already looks like a filename (contains a dot), use it as-is.
+    const hasDot = typeof jobId === 'string' && jobId.includes('.');
+    const fileName = hasDot ? jobId : `${jobId}${explicitExt}`;
+
+    const key = `${folder}/${tenantId}/${batchId}/${fileName}`;
 
     const params = {
       Bucket: this.bucketName,
       Key: key,
       Body: buffer,
-      ContentType: 'application/pdf',
-      Metadata: metadata,
+      ContentType: contentType,
+      Metadata: cleanMetadata,
     };
     // Only set ServerSideEncryption for real AWS S3 (Supabase may not support it)
     if (!process.env.AWS_ENDPOINT) {
