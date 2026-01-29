@@ -285,18 +285,30 @@ async function generateQRCodeForJob(jobId, options = {}) {
     if (storageName === 'local') {
       // Local filesystem storage
       const baseDir = process.env.STORAGE_PATH || './storage';
-      qrCodePath = path.join(baseDir, 'qr-codes', batch.tenantId, batch.id, `${jobId}.png`);
+      const relativePath = path.join('qr-codes', batch.tenantId, batch.id, `${jobId}.png`);
+      qrCodePath = path.join(baseDir, relativePath);
       await generateQRCodeImage(payload, qrCodePath);
+      // For local, store relative path in DB (matches other paths)
+      qrCodePath = relativePath;
     } else {
       // S3 storage
       const localTempPath = path.join('./temp', 'qr-codes', `${jobId}.png`);
       await generateQRCodeImage(payload, localTempPath);
 
-      // Upload to S3 - store method will create path like: tenantId/batchId/jobId.png
-      // We'll store it as a separate file with -qr suffix
+      // Upload to S3 into qr-codes/ folder with PNG content-type
       const qrBuffer = await fs.readFile(localTempPath);
       const qrJobId = `${jobId}-qr`;
-      qrCodePath = await storage.store(qrBuffer, batch.tenantId, batch.id, qrJobId);
+      qrCodePath = await storage.store(
+        qrBuffer,
+        batch.tenantId,
+        batch.id,
+        qrJobId,
+        {
+          __folder: 'qr-codes',
+          __contentType: 'image/png',
+          __extension: '.png',
+        }
+      );
 
       // Clean up temp file
       await fs.unlink(localTempPath).catch(() => { });
