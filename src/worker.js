@@ -636,64 +636,84 @@ async function startPDFQRPollingMode() {
             }
 
             const storage = StorageFactory.getStorage();
-            if (storage.getName() === 'local') {
-              const baseDir = process.env.STORAGE_PATH || './storage';
-              const originalPdfPath = path.join(baseDir, job.certificatePath);
-              const originalPdfBuffer = await fs.readFile(originalPdfPath);
 
-              // 1. Get the PDF with QR (Visual only)
-              const pdfWithQRBuffer = await pdfAnnotator.addQRAnnotationToPDF(
+            // Load original PDF from configured storage (local or S3)
+            const originalPdfBuffer = await storage.retrieve(job.certificatePath);
+
+            // 1. Get the PDF with QR (visual + VD embedding hook)
+            const pdfWithQRBuffer = await pdfAnnotator.addQRAnnotationToPDF(
+              originalPdfBuffer,
+              payload,
+              {
                 originalPdfBuffer,
-                payload,
-                {
-                  originalPdfBuffer,
-                  verificationBundle,
-                  ...qrConfig
-                }
-              );
+                verificationBundle,
+                ...qrConfig
+              }
+            );
 
-              // ============================================================
-              // 🔥 CRITICAL FIX: FORCE INJECT METADATA & ATTACHMENT 🔥
-              // ============================================================
-              logger.info('Force-injecting Metadata and Attachments...', { jobId: job.id });
+            // ============================================================
+            // 🔥 CRITICAL FIX: FORCE INJECT METADATA & ATTACHMENT 🔥
+            // ============================================================
+            logger.info('Force-injecting Metadata and Attachments...', { jobId: job.id });
 
-              const finalDoc = await PDFDocument.load(pdfWithQRBuffer);
+            const finalDoc = await PDFDocument.load(pdfWithQRBuffer);
 
-              // A. Inject Verification Data (VD) into Metadata 'Keywords'
-              // REMOVED: User requested to hide hash from "Tag" fields in Word/Properties.
-              // The VD is already embedded as an attachment in addQRAnnotationToPDF.
-              // const vdString = JSON.stringify(verificationBundle);
-              // finalDoc.setKeywords([vdString]);
+            // A. Inject Verification Data (VD) into Metadata 'Keywords'
+            // REMOVED: User requested to hide hash from "Tag" fields in Word/Properties.
+            // The VD is already embedded as an attachment in addQRAnnotationToPDF.
+            // const vdString = JSON.stringify(verificationBundle);
+            // finalDoc.setKeywords([vdString]);
 
-              // B. Attach Original PDF
-              // This fixes "Could not find embedded original PDF"
-              await finalDoc.attach(originalPdfBuffer, 'Justifai_Original_PDF.pdf', {
-                mimeType: 'application/pdf',
-                description: 'Original Unmodified Certificate',
-                creationDate: new Date(),
-                modificationDate: new Date(),
-              });
+            // B. Attach Original PDF
+            // This fixes "Could not find embedded original PDF"
+            await finalDoc.attach(originalPdfBuffer, 'Justifai_Original_PDF.pdf', {
+              mimeType: 'application/pdf',
+              description: 'Original Unmodified Certificate',
+              creationDate: new Date(),
+              modificationDate: new Date(),
+            });
 
-              // C. Save Final PDF
-              const finalPdfBytes = await finalDoc.save();
-              // ============================================================
+            // C. Save Final PDF
+            const finalPdfBytes = await finalDoc.save();
+            // ============================================================
 
-              const qrPdfPath = path.join(
-                baseDir,
+            const storageName = storage.getName();
+            let certificateWithQRPath;
+
+            if (storageName === 'local') {
+              // Local filesystem: keep existing folder structure under STORAGE_PATH
+              const baseDir = process.env.STORAGE_PATH || './storage';
+              const relativePath = path.join(
                 'qr-embedded-certificates',
                 batch.tenantId,
                 batch.id,
                 `${job.id}-with-qr.pdf`
               );
+              const qrPdfPath = path.join(baseDir, relativePath);
 
               await fs.mkdir(path.dirname(qrPdfPath), { recursive: true });
               await fs.writeFile(qrPdfPath, finalPdfBytes);
 
-              const relativePath = path.join('qr-embedded-certificates', batch.tenantId, batch.id, `${job.id}-with-qr.pdf`);
-              await job.update({ certificateWithQRPath: relativePath });
-
-              await checkAndUpdateBatchStatus(job.batchId);
+              certificateWithQRPath = relativePath;
+            } else {
+              // S3 / remote storage: store under qr-embedded-certificates/ folder in bucket
+              const qrJobId = `${job.id}-with-qr`;
+              certificateWithQRPath = await storage.store(
+                finalPdfBytes,
+                batch.tenantId,
+                batch.id,
+                qrJobId,
+                {
+                  __folder: 'qr-embedded-certificates',
+                  __contentType: 'application/pdf',
+                  __extension: '.pdf',
+                }
+              );
             }
+
+            await job.update({ certificateWithQRPath });
+
+            await checkAndUpdateBatchStatus(job.batchId);
           } catch (error) {
             logger.error('Failed to embed QR/VD for job', { jobId: job.id, error: error.message });
           }
