@@ -4,15 +4,32 @@ const QRCode = require('qrcode'); // To generate QR code
 const baseLogger = require('../utils/logger');
 const logger = baseLogger.createLogger ? baseLogger.createLogger('PDF') : baseLogger;
 
+// On Render (native): ensure Puppeteer looks for Chrome in the cache used at build time.
+if (process.env.RENDER && !process.env.PUPPETEER_CACHE_DIR) {
+  process.env.PUPPETEER_CACHE_DIR = '/opt/render/.cache/puppeteer';
+}
+if (!process.env.PUPPETEER_CACHE_DIR && process.env.PUPPETEER_CACHE_DIR_OVERRIDE) {
+  process.env.PUPPETEER_CACHE_DIR = process.env.PUPPETEER_CACHE_DIR_OVERRIDE;
+}
+
 let browserPromise = null;
 
 async function getBrowser() {
   if (!browserPromise) {
-    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    // Use system Chromium when set (e.g. Docker); otherwise use Puppeteer's cached Chrome.
+    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath();
     browserPromise = puppeteer.launch({
       headless: 'new',
-      executablePath: executablePath || undefined,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      executablePath,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--single-process',
+        '--no-zygote',
+        '--memory-pressure-off',
+      ],
     });
   }
   return browserPromise;
